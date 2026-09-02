@@ -1,4 +1,4 @@
-package manuelnunziata.buildweek4.paylods;
+package manuelnunziata.buildweek4.payloads;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

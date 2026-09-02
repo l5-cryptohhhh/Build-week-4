@@ -5,7 +5,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import manuelnunziata.buildweek4.entities.Cliente;
 import manuelnunziata.buildweek4.entities.Utenti;
-import manuelnunziata.buildweek4.paylods.ClienteDTO;
+import manuelnunziata.buildweek4.payloads.ClienteDTO;
 import manuelnunziata.buildweek4.services.ClienteService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;

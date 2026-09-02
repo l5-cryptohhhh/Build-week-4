@@ -7,7 +7,7 @@ import manuelnunziata.buildweek4.entities.Indirizzo;
 import manuelnunziata.buildweek4.entities.Ruolo;
 import manuelnunziata.buildweek4.entities.Utenti;
 import manuelnunziata.buildweek4.exceptions.UnauthorizedException;
-import manuelnunziata.buildweek4.paylods.ClienteDTO;
+import manuelnunziata.buildweek4.payloads.ClienteDTO;
 import manuelnunziata.buildweek4.repositories.ClienteRepository;
 import org.springframework.stereotype.Service;
 
