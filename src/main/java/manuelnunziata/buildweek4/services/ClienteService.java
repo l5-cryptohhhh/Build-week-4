@@ -11,6 +11,7 @@ import manuelnunziata.buildweek4.payloads.ClienteDTO;
 import manuelnunziata.buildweek4.repositories.ClienteRepository;
 import manuelnunziata.buildweek4.repositories.FatturaRepository;
 import manuelnunziata.buildweek4.repositories.IndirizzoRepository;
+import manuelnunziata.buildweek4.repositories.NotaRepository;
 import manuelnunziata.buildweek4.repositories.UtentiRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class ClienteService {
     private final IndirizzoRepository indirizzoRepository;
     private final UtentiRepository utentiRepository;
     private final FatturaRepository fatturaRepository;
+    private final NotaRepository notaRepository;
 
     public Cliente create(ClienteDTO dto, Utenti richiedente) {
         Indirizzo indirizzo = indirizzoRepository.findById(dto.indirizzoId())
@@ -64,8 +66,8 @@ public class ClienteService {
 
     public void delete(Long id, Utenti richiedente) {
         Cliente cliente = findById(id, richiedente);
-        if (fatturaRepository.existsByClienteId(id)) {
-            throw new BadRequestException("Impossibile eliminare il cliente: ha fatture associate");
+        if (fatturaRepository.existsByClienteId(id) || notaRepository.existsByClienteId(id)) {
+            throw new BadRequestException("Impossibile eliminare il cliente: ha fatture o note associate");
         }
         clienteRepository.delete(cliente);
     }
