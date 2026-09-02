@@ -1,0 +1,4 @@
+package manuelnunziata.buildweek4.security;
+
+public class JwtFilter {
+}
