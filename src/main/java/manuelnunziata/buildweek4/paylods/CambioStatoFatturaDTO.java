@@ -1,0 +1,7 @@
+package manuelnunziata.buildweek4.paylods;
+
+import jakarta.validation.constraints.NotNull;
+import manuelnunziata.buildweek4.entities.StatoFattura;
+
+public record CambioStatoFatturaDTO(@NotNull(message = "Lo stato è obbligatorio") StatoFattura stato) {
+}
