@@ -11,7 +11,10 @@ import manuelnunziata.buildweek4.exceptions.UnauthorizedException;
 import manuelnunziata.buildweek4.payloads.ClienteDTO;
 import manuelnunziata.buildweek4.repositories.ClienteRepository;
 import manuelnunziata.buildweek4.repositories.IndirizzoRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +34,33 @@ public class ClienteService {
         applyDto(cliente, dto, indirizzo);
         cliente.setCommerciale(commerciale);
         return clienteRepository.save(cliente);
+    }
+
+    public List<Cliente> findAll(Utenti richiedente, String search) {
+        List<Cliente> clienti = (search == null || search.isBlank())
+                ? clienteRepository.findAll()
+                : clienteRepository.findByRagioneSocialeContainingIgnoreCaseOrPartitaIvaContainingIgnoreCase(search, search);
+
+        if (richiedente.getRuolo() == Ruolo.COMMERCIALE) {
+            return clienti.stream().filter(c -> c.getCommerciale().getId().equals(richiedente.getId())).toList();
+        }
+        return clienti;
+    }
+
+    public Cliente findById(Long id, Utenti richiedente) {
+        Cliente cliente = clienteRepository.findById(id).orElseThrow(() -> new NotFoundException(id));
+        checkOwnership(cliente, richiedente);
+        return cliente;
+    }
+
+    private void checkOwnership(Cliente cliente, Utenti richiedente) {
+        if (!hasAccess(cliente, richiedente)) {
+            throw new AccessDeniedException("Non sei il commerciale assegnato a questo cliente");
+        }
+    }
+
+    public boolean hasAccess(Cliente cliente, Utenti richiedente) {
+        return richiedente.getRuolo() != Ruolo.COMMERCIALE || cliente.getCommerciale().getId().equals(richiedente.getId());
     }
 
     private void applyDto(Cliente cliente, ClienteDTO dto, Indirizzo indirizzo) {
