@@ -31,4 +31,7 @@ public class Nota {
         this.cliente = cliente;
         this.dataCreazione = dataCreazione;
     }
+
+
+
 }
