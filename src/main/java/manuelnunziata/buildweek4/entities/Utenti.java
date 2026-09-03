@@ -3,6 +3,12 @@ package manuelnunziata.buildweek4.entities;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import java.util.Collection;
+import java.util.List;
 
 @Entity
 @Table(name = "utenti")
@@ -12,7 +18,7 @@ import lombok.*;
 @NoArgsConstructor
 @ToString
 
-public class Utenti {
+public class Utenti implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,5 +41,17 @@ public class Utenti {
         this.password = password;
         this.nome = nome;
         this.cognome = cognome;
+        this.ruolo = Ruolo.USER;
+    }
+
+    @Override
+    @JsonIgnore
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_" + ruolo.name()));
+    }
+
+    @Override
+    public String getUsername() {
+        return email;
     }
 }
