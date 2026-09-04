@@ -1,0 +1,385 @@
+{
+	"info": {
+		"_postman_id": "b1e2c3d4-5f6a-4b7c-8d9e-0f1a2b3c4d5e",
+		"name": "Build Week 4 - Gestionale Fatture",
+		"description": "API per la gestione di clienti, indirizzi, fatture e note.\n\n**Autenticazione**: JWT Bearer token. Esegui prima `Auth > Login` (o `Register` + `Login`): il token viene salvato automaticamente nella variabile di collection `token` e usato da tutte le altre richieste.\n\n**Ruoli**: USER, COMMERCIALE, CONTABILE, ADMIN.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{ "key": "token", "value": "{{token}}", "type": "string" }
+		]
+	},
+	"variable": [
+		{ "key": "baseUrl", "value": "http://localhost:3001", "type": "string" },
+		{ "key": "token", "value": "", "type": "string" },
+		{ "key": "clienteId", "value": "", "type": "string" },
+		{ "key": "indirizzoId", "value": "", "type": "string" },
+		{ "key": "commercialeId", "value": "", "type": "string" },
+		{ "key": "fatturaId", "value": "", "type": "string" },
+		{ "key": "notaId", "value": "", "type": "string" }
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"description": "IMPORTANTE: ogni utente registrato riceve il ruolo USER di default (Utenti.java). Non esiste un endpoint per cambiare ruolo via API: prima di poter creare/gestire risorse (Indirizzi, Clienti, Fatture — che richiedono ADMIN/COMMERCIALE/CONTABILE) devi promuovere l'utente direttamente sul database:\n\n```sql\nUPDATE utenti SET ruolo = 'ADMIN' WHERE email = 'admin@example.com';\n```\n\nSenza questo passaggio, `Crea cliente` e le altre richieste protette rispondono 403 Forbidden.",
+			"item": [
+				{
+					"name": "Register",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\",\n  \"nome\": \"Mario\",\n  \"cognome\": \"Rossi\"\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/auth/register", "host": [ "{{baseUrl}}" ], "path": [ "auth", "register" ] },
+						"description": "Crea un nuovo utente con ruolo USER di default.\n\n⚠️ Prima di procedere con Login e le richieste protette, promuovi l'utente sul DB:\n```sql\nUPDATE utenti SET ruolo = 'ADMIN' WHERE email = 'admin@example.com';\n```\nAltrimenti `Crea cliente`, `Crea indirizzo`, ecc. falliranno con 403 Forbidden."
+					}
+				},
+				{
+					"name": "Register commerciale",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    pm.collectionVariables.set('commercialeId', pm.response.json().id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"commerciale@example.com\",\n  \"password\": \"password123\",\n  \"nome\": \"Luigi\",\n  \"cognome\": \"Verdi\"\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/auth/register", "host": [ "{{baseUrl}}" ], "path": [ "auth", "register" ] },
+						"description": "Crea il secondo utente da assegnare come commerciale ai clienti (necessario quando chi crea il cliente è ADMIN, vedi `ClienteService.resolveCommerciale`). Salva automaticamente il suo `id` in `commercialeId`.\n\n⚠️ Promuovilo a COMMERCIALE sul DB (basta questo ruolo, non serve ADMIN):\n```sql\nUPDATE utenti SET ruolo = 'COMMERCIALE' WHERE email = 'commerciale@example.com';\n```"
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const body = pm.response.json();",
+									"    if (body.token) {",
+									"        pm.collectionVariables.set('token', body.token);",
+									"        console.log('Token salvato in {{token}}');",
+									"    }",
+									"}",
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/auth/login", "host": [ "{{baseUrl}}" ], "path": [ "auth", "login" ] },
+						"description": "Effettua il login e salva automaticamente il JWT nella variabile di collection `token`."
+					}
+				}
+			]
+		},
+		{
+			"name": "Indirizzi",
+			"description": "Richiede ruolo ADMIN o COMMERCIALE.",
+			"item": [
+				{
+					"name": "Crea indirizzo",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    pm.collectionVariables.set('indirizzoId', pm.response.json().id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"via\": \"Via Roma\",\n  \"civico\": \"10\",\n  \"citta\": \"Milano\",\n  \"provincia\": \"MI\",\n  \"cap\": \"20100\"\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/indirizzi", "host": [ "{{baseUrl}}" ], "path": [ "indirizzi" ] }
+					}
+				},
+				{
+					"name": "Lista indirizzi",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/indirizzi", "host": [ "{{baseUrl}}" ], "path": [ "indirizzi" ] }
+					}
+				},
+				{
+					"name": "Dettaglio indirizzo",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/indirizzi/{{indirizzoId}}", "host": [ "{{baseUrl}}" ], "path": [ "indirizzi", "{{indirizzoId}}" ] }
+					}
+				},
+				{
+					"name": "Aggiorna indirizzo",
+					"request": {
+						"method": "PUT",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"via\": \"Via Roma\",\n  \"civico\": \"12\",\n  \"citta\": \"Milano\",\n  \"provincia\": \"MI\",\n  \"cap\": \"20100\"\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/indirizzi/{{indirizzoId}}", "host": [ "{{baseUrl}}" ], "path": [ "indirizzi", "{{indirizzoId}}" ] }
+					}
+				},
+				{
+					"name": "Elimina indirizzo",
+					"request": {
+						"method": "DELETE",
+						"url": { "raw": "{{baseUrl}}/indirizzi/{{indirizzoId}}", "host": [ "{{baseUrl}}" ], "path": [ "indirizzi", "{{indirizzoId}}" ] }
+					}
+				}
+			]
+		},
+		{
+			"name": "Clienti",
+			"description": "Creazione/modifica/eliminazione richiede ADMIN o COMMERCIALE; lettura anche CONTABILE.",
+			"item": [
+				{
+					"name": "Crea cliente",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    pm.collectionVariables.set('clienteId', pm.response.json().id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ragioneSociale\": \"Acme Srl\",\n  \"partitaIva\": \"01234567890\",\n  \"email\": \"info@acme.it\",\n  \"telefono\": \"021234567\",\n  \"indirizzoId\": {{indirizzoId}},\n  \"commercialeId\": {{commercialeId}}\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/clienti", "host": [ "{{baseUrl}}" ], "path": [ "clienti" ] }
+					}
+				},
+				{
+					"name": "Lista clienti",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/clienti?search=",
+							"host": [ "{{baseUrl}}" ],
+							"path": [ "clienti" ],
+							"query": [ { "key": "search", "value": "", "description": "Filtro opzionale per ragione sociale/email" } ]
+						}
+					}
+				},
+				{
+					"name": "Dettaglio cliente",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/clienti/{{clienteId}}", "host": [ "{{baseUrl}}" ], "path": [ "clienti", "{{clienteId}}" ] }
+					}
+				},
+				{
+					"name": "Aggiorna cliente",
+					"request": {
+						"method": "PUT",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ragioneSociale\": \"Acme Srl\",\n  \"partitaIva\": \"01234567890\",\n  \"email\": \"info@acme.it\",\n  \"telefono\": \"029999999\",\n  \"indirizzoId\": {{indirizzoId}},\n  \"commercialeId\": {{commercialeId}}\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/clienti/{{clienteId}}", "host": [ "{{baseUrl}}" ], "path": [ "clienti", "{{clienteId}}" ] }
+					}
+				},
+				{
+					"name": "Elimina cliente",
+					"request": {
+						"method": "DELETE",
+						"url": { "raw": "{{baseUrl}}/clienti/{{clienteId}}", "host": [ "{{baseUrl}}" ], "path": [ "clienti", "{{clienteId}}" ] }
+					}
+				},
+				{
+					"name": "Note",
+					"description": "Richiede ADMIN o COMMERCIALE.",
+					"item": [
+						{
+							"name": "Crea nota",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    pm.collectionVariables.set('notaId', pm.response.json().id);",
+											"}"
+										]
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [ { "key": "Content-Type", "value": "application/json" } ],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"testo\": \"Cliente contattato per rinnovo contratto\",\n  \"clienteId\": {{clienteId}}\n}"
+								},
+								"url": { "raw": "{{baseUrl}}/clienti/{{clienteId}}/note", "host": [ "{{baseUrl}}" ], "path": [ "clienti", "{{clienteId}}", "note" ] }
+							}
+						},
+						{
+							"name": "Lista note",
+							"request": {
+								"method": "GET",
+								"url": { "raw": "{{baseUrl}}/clienti/{{clienteId}}/note", "host": [ "{{baseUrl}}" ], "path": [ "clienti", "{{clienteId}}", "note" ] }
+							}
+						},
+						{
+							"name": "Dettaglio nota",
+							"request": {
+								"method": "GET",
+								"url": { "raw": "{{baseUrl}}/clienti/{{clienteId}}/note/{{notaId}}", "host": [ "{{baseUrl}}" ], "path": [ "clienti", "{{clienteId}}", "note", "{{notaId}}" ] }
+							}
+						},
+						{
+							"name": "Aggiorna nota",
+							"request": {
+								"method": "PUT",
+								"header": [ { "key": "Content-Type", "value": "application/json" } ],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"testo\": \"Cliente ha confermato il rinnovo\",\n  \"clienteId\": {{clienteId}}\n}"
+								},
+								"url": { "raw": "{{baseUrl}}/clienti/{{clienteId}}/note/{{notaId}}", "host": [ "{{baseUrl}}" ], "path": [ "clienti", "{{clienteId}}", "note", "{{notaId}}" ] }
+							}
+						},
+						{
+							"name": "Elimina nota",
+							"request": {
+								"method": "DELETE",
+								"url": { "raw": "{{baseUrl}}/clienti/{{clienteId}}/note/{{notaId}}", "host": [ "{{baseUrl}}" ], "path": [ "clienti", "{{clienteId}}", "note", "{{notaId}}" ] }
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Fatture",
+			"description": "Richiede ADMIN, COMMERCIALE o CONTABILE. Il cambio stato richiede ADMIN o CONTABILE.",
+			"item": [
+				{
+					"name": "Crea fattura",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    pm.collectionVariables.set('fatturaId', pm.response.json().id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"numero\": \"2026/001\",\n  \"importo\": 1500,\n  \"scadenza\": \"2026-12-31\",\n  \"clienteId\": {{clienteId}}\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/fatture", "host": [ "{{baseUrl}}" ], "path": [ "fatture" ] }
+					}
+				},
+				{
+					"name": "Lista fatture",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/fatture?clienteId=&stato=",
+							"host": [ "{{baseUrl}}" ],
+							"path": [ "fatture" ],
+							"query": [
+								{ "key": "clienteId", "value": "", "description": "Filtro opzionale per cliente" },
+								{ "key": "stato", "value": "", "description": "BOZZA | EMESSA | PAGATA | SCADUTA | INSOLUTA" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Dettaglio fattura",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/fatture/{{fatturaId}}", "host": [ "{{baseUrl}}" ], "path": [ "fatture", "{{fatturaId}}" ] }
+					}
+				},
+				{
+					"name": "Aggiorna fattura",
+					"request": {
+						"method": "PUT",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"numero\": \"2026/001\",\n  \"importo\": 1800,\n  \"scadenza\": \"2027-01-31\",\n  \"clienteId\": {{clienteId}}\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/fatture/{{fatturaId}}", "host": [ "{{baseUrl}}" ], "path": [ "fatture", "{{fatturaId}}" ] }
+					}
+				},
+				{
+					"name": "Cambia stato fattura",
+					"request": {
+						"method": "PATCH",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"stato\": \"EMESSA\"\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/fatture/{{fatturaId}}/stato", "host": [ "{{baseUrl}}" ], "path": [ "fatture", "{{fatturaId}}", "stato" ] }
+					}
+				},
+				{
+					"name": "Elimina fattura",
+					"request": {
+						"method": "DELETE",
+						"url": { "raw": "{{baseUrl}}/fatture/{{fatturaId}}", "host": [ "{{baseUrl}}" ], "path": [ "fatture", "{{fatturaId}}" ] }
+					}
+				}
+			]
+		}
+	]
+}
